@@ -1,0 +1,12 @@
+{
+  "background_color": "#ffffff",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Payverify",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Payverify",
+  "start_url": "/",
+  "theme_color": "#ffffff",
+  "id": "Payverify"
+}
