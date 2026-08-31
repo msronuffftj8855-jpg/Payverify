@@ -1,0 +1,13 @@
+{
+  "background_color": "rgb(255, 234, 234)",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "Payverify",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "Payverify",
+  "start_url": "/",
+  "theme_color": "#fdf2f2",
+  "id": "Payverify",
+  "description": "Payment verification app)।"
+}
