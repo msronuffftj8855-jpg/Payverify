@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover" />
+<title>PayVerify — Admin Portal</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { display: ['Sora', 'sans-serif'], body: ['Inter', 'sans-serif'] },
+        boxShadow: {
+          card: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)',
+          glowEmerald: '0 0 20px -5px rgba(16,185,129,0.3)',
+        },
+      },
+    },
+  };
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Firebase App Compat SDK v10.8.0 -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<style>
+  html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+  }
+  .font-display { font-family: 'Sora', sans-serif; }
+  .view { display: none; height: 100%; }
+  .view.active { display: flex; flex-direction: column; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+  input:focus, textarea:focus, button:focus-visible { outline: 2px solid #10b981; outline-offset: 2px; }
+  .sidebar-item.active { background: rgba(16,185,129,0.1); color: #047857; border: 1px solid rgba(16,185,129,0.2); }
+  .sidebar-item:not(.active) { border: 1px solid transparent; }
+  .sidebar-item:not(.active):hover { background: #f1f5f9; }
+</style>
+</head>
+
+<body class="font-body">
+
+<!-- LOADING SCREEN -->
+<div id="loading-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center gap-4 bg-white">
+  <div class="w-12 h-12 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-glowEmerald animate-pulse text-white">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.6"/></svg>
+  </div>
+</div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden bg-slate-50">
+  <div class="bg-white border border-slate-200 p-7 rounded-2xl w-full max-w-sm shadow-xl">
+    <div class="flex items-center justify-center gap-3 mb-6">
+      <div class="w-11 h-11 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-glowEmerald">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.6"/></svg>
+      </div>
+      <h2 class="font-display font-bold text-2xl text-slate-900">Admin Login</h2>
+    </div>
+
+    <form onsubmit="handleLogin(event)" class="space-y-4">
+      <div>
+        <label class="text-xs font-semibold text-slate-700 mb-1.5 block">Email</label>
+        <input required type="email" id="login-email" class="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600" placeholder="admin email" />
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-slate-700 mb-1.5 block">Password</label>
+        <input required type="password" id="login-password" class="w-full px-3.5 py-3 rounded-xl border border-slate-300 bg-white text-sm text-slate-900 placeholder:text-slate-400 focus:border-emerald-600" placeholder="••••••••" />
+      </div>
+      <button type="submit" id="btn-login-submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+        <span>লগইন</span>
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ADMIN SHELL -->
+<div id="admin-shell" class="h-screen flex flex-col lg:flex-row overflow-hidden hidden bg-white">
+  <!-- Desktop Sidebar -->
+  <aside class="hidden lg:flex fixed top-0 left-0 h-screen w-64 bg-slate-50 border-r border-slate-200 flex-col z-40">
+    <div class="px-6 pt-6 pb-6 flex items-center gap-3 border-b border-slate-200 shrink-0">
+      <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-glowEmerald">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2.6"/></svg>
+      </div>
+      <div>
+        <p class="font-display font-bold text-base leading-tight text-slate-900">PayVerify</p>
+        <p class="text-xs text-slate-500">Admin panel</p>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-1.5 overflow-y-auto">
+      <button onclick="switchTab('home')" id="nav-desktop-home" class="sidebar-item active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700">
+        <span>Dashboard</span>
+      </button>
+    </nav>
+
+    <div class="px-4 py-4 border-t border-slate-200 bg-slate-100 shrink-0">
+      <button onclick="handleSignOut()" class="w-full py-2.5 rounded-xl bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold flex items-center justify-center gap-2 transition-colors shadow-sm">
+        <span>লগ আউট</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main Content Container -->
+  <main class="lg:ml-64 flex-1 h-full overflow-hidden flex flex-col pt-2.5 lg:pt-6 px-3 lg:px-8 max-w-4xl w-full bg-white">
+    <div id="view-home" class="view active flex flex-col h-full overflow-hidden">
+      <div class="shrink-0 space-y-2.5 pb-2">
+        <h1 class="font-display text-xl font-bold text-slate-900">Admin Dashboard</h1>
+        
+        <!-- বিকাশ ও নগদের বাটন এবং ফর্ম -->
+        <div class="bg-slate-50 border border-slate-200 rounded-xl shadow-sm p-3">
+          <div class="grid grid-cols-2 gap-2.5">
+            <button type="button" id="btn-bkash" onclick="selectGw('bKash')" class="method-icon-btn border border-slate-200 bg-white rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:border-pink-500 transition-colors">
+              <span class="text-xs font-bold text-pink-600">bKash</span>
+            </button>
+            <button type="button" id="btn-nagad" onclick="selectGw('Nagad')" class="method-icon-btn border border-slate-200 bg-white rounded-xl p-3 flex flex-col items-center justify-center gap-1.5 hover:border-orange-500 transition-colors">
+              <span class="text-xs font-bold text-orange-600">Nagad</span>
+            </button>
+          </div>
+
+          <form id="method-form" class="space-y-2.5 hidden pt-3 mt-3 border-t border-slate-200" onsubmit="event.preventDefault(); publishTarget();">
+            <div>
+              <label class="text-[11px] font-semibold text-slate-700 mb-1 block">Number</label>
+              <input required id="method-number" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 placeholder:text-slate-400" placeholder="01XXXXXXXXX" />
+            </div>
+            <div>
+              <label class="text-[11px] font-semibold text-slate-700 mb-1 block">Target Amount</label>
+              <input required type="number" step="0.01" id="method-amount" class="w-full px-3 py-2 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 placeholder:text-slate-400" placeholder="0.00" />
+            </div>
+            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-xl text-xs shadow-sm">Publish Target</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto pb-6 space-y-2.5" id="pending-list-container">
+        <p class="text-center text-slate-500 py-4 text-xs">No active targets</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyAZCSPbxm576ciZ69RFMVO07u_fJzm1QYo",
+    authDomain: "payverify-ec555.firebaseapp.com",
+    projectId: "payverify-ec555",
+    storageBucket: "payverify-ec555.firebasestorage.app",
+    messagingSenderId: "385481955557",
+    appId: "1:385481955557:web:a593ea49ddd35877d49c0c",
+    measurementId: "G-W4JBFWZF1G"
+  };
+
+  if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const auth = firebase.auth();
+
+  auth.onAuthStateChanged(user => {
+    const loadingScreen = document.getElementById('loading-screen');
+    const loginScreen = document.getElementById('login-screen');
+    const adminShell = document.getElementById('admin-shell');
+
+    loadingScreen.style.opacity = '0';
+    setTimeout(() => loadingScreen.style.display = 'none', 200);
+
+    if (user) {
+      loginScreen.classList.add('hidden');
+      adminShell.classList.remove('hidden');
+      loadAdminData();
+    } else {
+      adminShell.classList.add('hidden');
+      loginScreen.classList.remove('hidden');
+    }
+  });
+
+  async function handleLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const submitBtn = document.getElementById('btn-login-submit');
+
+    try {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>লগইন হচ্ছে...</span>';
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch (err) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<span>লগইন</span>';
+      alert("ইমেইল অথবা পাসওয়ার্ড ভুল হয়েছে!");
+    }
+  }
+
+  function handleSignOut() {
+    auth.signOut();
+  }
+
+  let selectedGateway = '';
+  function selectGw(gw) {
+    selectedGateway = gw;
+    document.getElementById('method-form').classList.remove('hidden');
+  }
+
+  async function publishTarget() {
+    const num = document.getElementById('method-number').value;
+    const amt = document.getElementById('method-amount').value;
+    if(!selectedGateway || !num || !amt) return;
+
+    await db.collection('payment_submissions').add({
+      gateway: selectedGateway, number: num, amount: parseFloat(amt),
+      status: 'pending', hasAgentProof: false, createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('method-number').value = '';
+    document.getElementById('method-amount').value = '';
+    document.getElementById('method-form').classList.add('hidden');
+    alert("Target published!");
+  }
+
+  function loadAdminData() {
+    db.collection('payment_submissions').where('status', '==', 'pending').onSnapshot(snap => {
+      const container = document.getElementById('pending-list-container');
+      if(snap.empty) { container.innerHTML = '<p class="text-center text-slate-500 py-4 text-xs">No pending proofs</p>'; return; }
+      let html = '';
+      snap.forEach(doc => {
+        const d = doc.data();
+        html += `<div class="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-2 shadow-sm">
+          <div class="flex justify-between text-xs"><span class="font-semibold text-slate-900">${d.gateway} - ${d.number}</span><b class="text-emerald-600">BDT ${d.amount}</b></div>`;
+        if(d.hasAgentProof) {
+          html += `<div class="text-[11px] text-slate-700 bg-white p-2 rounded border border-slate-200">
+                     Agent: <b class="text-slate-900">${d.agentName}</b><br>
+                     TrxID: <b class="text-emerald-600">${d.trxId}</b><br>
+                     <a href="${d.imageUrl}" target="_blank" class="text-blue-600 underline text-[10px] block mt-1">প্রুফ স্ক্রিনশট দেখুন</a>
+                   </div>
+                   <button onclick="db.collection('payment_submissions').doc('${doc.id}').update({status: 'approved'})" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-1.5 rounded-lg text-xs font-semibold shadow-sm">Approve</button>`;
+        } else {
+          html += `<p class="text-[11px] text-slate-500 italic">Waiting for agent...</p>`;
+        }
+        html += `</div>`;
+      });
+      container.innerHTML = html;
+    });
+  }
+</script>
+</body>
+</html>
